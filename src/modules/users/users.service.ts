@@ -1,9 +1,14 @@
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import { Prisma } from '@/generated/prisma/client';
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import bcrypt from 'bcryptjs';
 import { UserResponseDto } from './dto/user-response.dto';
+import { ProfileResponseDto } from './dto/profile-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -45,5 +50,31 @@ export class UsersService {
 
       throw error;
     }
+  }
+
+  async getProfile(userId: string): Promise<ProfileResponseDto> {
+    const userFound = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+        name: true,
+        lastName: true,
+        dni: true,
+        email: true,
+        role: true,
+        phone: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!userFound) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    return userFound;
   }
 }

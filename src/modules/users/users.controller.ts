@@ -5,6 +5,7 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { type AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { Auth } from '../auth/decorators/auth.decorator';
+import { ProfileResponseDto } from './dto/profile-response.dto';
 
 @Controller('users')
 export class UsersController {
@@ -17,7 +18,9 @@ export class UsersController {
 
   @Get('profile')
   @Auth()
-  getProfile(@CurrentUser() user: AuthenticatedUser) {
-    return user;
+  async getProfile(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProfileResponseDto> {
+    return this.usersService.getProfile(user.id);
   }
 }
