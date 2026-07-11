@@ -5,8 +5,10 @@ import { UserResponseDto } from './dto/user-response.dto';
 
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { Auth } from '@/common/decorators/auth.decorator';
-import { type AuthenticatedUser } from '@/common/types/authenticated-user.type';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { Time } from '@/common/constants/time.constant';
+import { type AuthenticatedUser } from '@/common/interfaces/authenticated-user.interface';
 
 @Controller('users')
 export class UsersController {
@@ -19,7 +21,13 @@ export class UsersController {
 
   @Get('profile')
   @Auth()
-  async getProfile(
+  @Throttle({
+    default: {
+      limit: 6,
+      ttl: Time.MINUTE,
+    },
+  })
+  getProfile(
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ProfileResponseDto> {
     return this.usersService.getProfile(user.id);

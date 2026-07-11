@@ -20,11 +20,10 @@ async function bootstrap() {
     }),
   });
 
-  const logger = new Logger('bootstrap');
+  const logger = new Logger('Bootstrap');
   const configService = app.get(ConfigService);
 
-  const httpAdapter = app.getHttpAdapter().getInstance();
-  httpAdapter.set('trust proxy', 1);
+  app.set('trust proxy', 1);
 
   const apiVersion = configService.getOrThrow<string>('API_VERSION');
 
@@ -33,7 +32,9 @@ async function bootstrap() {
     defaultVersion: apiVersion,
   });
 
-  const isProd = configService.getOrThrow<string>('NODE_ENV') === 'production';
+  const nodeEnv = configService.getOrThrow<string>('NODE_ENV');
+  const isProduction = nodeEnv === 'production';
+
   const corsOrigins = configService
     .getOrThrow<string>('CORS_ORIGINS')
     .split(',')
@@ -41,12 +42,14 @@ async function bootstrap() {
     .filter(Boolean);
 
   app.enableCors({
-    origin: isProd ? corsOrigins : true,
+    origin: isProduction ? corsOrigins : true,
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
-  app.use(cookieParser(), compression(), helmet());
+  app.use(helmet());
+  app.use(compression());
+  app.use(cookieParser());
 
   const apiPrefix = configService.getOrThrow<string>('API_PREFIX');
 
@@ -59,18 +62,16 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
   app.useGlobalInterceptors(new ResponseInterceptor());
 
   app.enableShutdownHooks();
 
   const port = configService.getOrThrow<number>('PORT');
-  const nodeEnv = configService.getOrThrow<number>('NODE_ENV');
 
   await app.listen(port, '0.0.0.0');
 
   logger.log(
-    `Application is running on: ${await app.getUrl()}, NODE_ENV: ${nodeEnv}`,
+    `Aplicación ejecutándose en ${await app.getUrl()} | NODE_ENV=${nodeEnv}`,
   );
 }
 

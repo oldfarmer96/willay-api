@@ -16,4 +16,6 @@ export const envSchema = Joi.object({
   API_VERSION: Joi.string().required(),
   CORS_ORIGINS: Joi.string().required(),
   API_PREFIX: Joi.string().required(),
+  RATE_LIMIT_LIMIT: Joi.number().integer().positive(),
+  RATE_LIMIT_TTL: Joi.number().integer().positive(),
 });

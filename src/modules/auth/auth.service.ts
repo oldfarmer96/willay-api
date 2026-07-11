@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { UserStatus } from '@/generated/prisma/enums';
 import { JwtService } from '@nestjs/jwt';
-import { JwtPayload } from '@/common/types/jwt-payload.type';
+import { JwtPayload } from '@/common/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   HttpCode,
   HttpStatus,
   Post,
@@ -12,6 +13,7 @@ import { LoginResponseDto } from './dto/login-response.dto';
 import type { CookieOptions, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { Auth } from '@/common/decorators/auth.decorator';
+import { UserRole } from '@/generated/prisma/enums';
 
 @Controller('auth')
 export class AuthController {
@@ -51,6 +53,13 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<LoginResponseDto['user']> {
     const result = await this.authService.login(body);
+
+    if (
+      result.user.role !== UserRole.ADMIN &&
+      result.user.role !== UserRole.OPERATOR
+    ) {
+      throw new ForbiddenException('No tiene acceso al panel administrativo');
+    }
 
     response.cookie(this.cookieName, result.accessToken, this.cookieOptions);
 

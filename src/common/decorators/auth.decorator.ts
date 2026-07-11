@@ -1,9 +1,8 @@
 import { UserRole } from '@/generated/prisma/enums';
 import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RoleGuard } from '../guards/role.guard';
-
-export const ROLES_KEY = 'roles';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { ROLES_KEY } from '../constants/roles-key.constant';
 
 export function Auth(...roles: UserRole[]) {
   return applyDecorators(
