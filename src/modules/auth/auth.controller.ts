@@ -19,6 +19,7 @@ import { UserRole } from '@/generated/prisma/enums';
 export class AuthController {
   private readonly cookieName: string;
   private readonly cookieOptions: CookieOptions;
+
   constructor(
     private readonly authService: AuthService,
     configService: ConfigService,
