@@ -2,10 +2,11 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { type AuthenticatedUser } from '../auth/types/authenticated-user.type';
-import { Auth } from '../auth/decorators/auth.decorator';
+
 import { ProfileResponseDto } from './dto/profile-response.dto';
+import { Auth } from '@/common/decorators/auth.decorator';
+import { type AuthenticatedUser } from '@/common/types/authenticated-user.type';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 @Controller('users')
 export class UsersController {

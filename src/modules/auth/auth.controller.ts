@@ -11,7 +11,7 @@ import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import type { CookieOptions, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { Auth } from './decorators/auth.decorator';
+import { Auth } from '@/common/decorators/auth.decorator';
 
 @Controller('auth')
 export class AuthController {
