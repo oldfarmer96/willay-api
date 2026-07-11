@@ -6,12 +6,12 @@ import {
   ValidationPipe,
   VersioningType,
 } from '@nestjs/common';
-import { ResponseInterceptor } from './common/interceptors/response/response.interceptor';
 import cookieParser from 'cookie-parser';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import compression from 'compression';
 import helmet from 'helmet';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
