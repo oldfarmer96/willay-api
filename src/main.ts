@@ -25,6 +25,10 @@ async function bootstrap() {
 
   app.set('trust proxy', 1);
 
+  const apiPrefix = configService.getOrThrow<string>('API_PREFIX');
+
+  app.setGlobalPrefix(apiPrefix);
+
   const apiVersion = configService.getOrThrow<string>('API_VERSION');
 
   app.enableVersioning({
@@ -50,10 +54,6 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
   app.use(cookieParser());
-
-  const apiPrefix = configService.getOrThrow<string>('API_PREFIX');
-
-  app.setGlobalPrefix(apiPrefix);
 
   app.useGlobalPipes(
     new ValidationPipe({

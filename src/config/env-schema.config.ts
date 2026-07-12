@@ -18,4 +18,12 @@ export const envSchema = Joi.object({
   API_PREFIX: Joi.string().required(),
   RATE_LIMIT_LIMIT: Joi.number().integer().positive(),
   RATE_LIMIT_TTL: Joi.number().integer().positive(),
+
+  CEREBRAS_API_KEY: Joi.string().required(),
+  GROQ_API_KEY: Joi.string().required(),
+  OPENROUTER_API_KEY: Joi.string().required(),
+
+  REDIS_HOST: Joi.string().required(),
+  REDIS_PORT: Joi.number().port().required(),
+  REDIS_PASSWORD: Joi.string().allow('').optional(),
 });

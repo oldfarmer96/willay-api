@@ -8,6 +8,12 @@ import { AuthModule } from './modules/auth/auth.module';
 import { envSchema } from './config/env-schema.config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { IncidentsModule } from './modules/incidents/incidents.module';
+import { MunicipalAreasModule } from './modules/municipal-areas/municipal-areas.module';
+import { IncidentAssignmentsModule } from './modules/incident-assignments/incident-assignments.module';
+import { AiModule } from './modules/ai/ai.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
@@ -29,6 +35,21 @@ import { APP_GUARD } from '@nestjs/core';
     }),
     UsersModule,
     AuthModule,
+    IncidentsModule,
+    MunicipalAreasModule,
+    IncidentAssignmentsModule,
+    AiModule,
+    NotificationsModule,
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.getOrThrow<string>('REDIS_HOST'),
+          port: configService.getOrThrow<number>('REDIS_PORT'),
+          password: configService.get<string>('REDIS_PASSWORD'),
+        },
+      }),
+    }),
   ],
   controllers: [AppController],
   providers: [

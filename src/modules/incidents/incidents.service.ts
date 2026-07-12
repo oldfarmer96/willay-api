@@ -1,0 +1,173 @@
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { CreateIncidentDto } from './dto/create-incident.dto';
+import { PrismaService } from '@/infrastructure/prisma/prisma.service';
+import { IncidentAiProducer } from '../ai/queue/incident-ai.producer';
+import { AiStatus, Prisma, UserRole } from '@/generated/prisma/client';
+import { AuthenticatedUser } from '@/common/interfaces/authenticated-user.interface';
+
+@Injectable()
+export class IncidentsService {
+  private readonly logger = new Logger(IncidentsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly incidentAiProducer: IncidentAiProducer,
+  ) {}
+
+  async create(userId: string, dto: CreateIncidentDto) {
+    try {
+      const incident = await this.prisma.incident.create({
+        data: {
+          userId,
+          clientRequestId: dto.clientRequestId,
+          originalMessage: dto.originalMessage,
+
+          latitude: new Prisma.Decimal(dto.latitude),
+          longitude: new Prisma.Decimal(dto.longitude),
+
+          address: dto.address,
+          addressReference: dto.addressReference,
+        },
+
+        select: {
+          id: true,
+          clientRequestId: true,
+          originalMessage: true,
+          latitude: true,
+          longitude: true,
+          address: true,
+          addressReference: true,
+          status: true,
+          aiStatus: true,
+          createdAt: true,
+        },
+      });
+
+      try {
+        await this.incidentAiProducer.enqueue(incident.id);
+      } catch (error) {
+        this.logger.error(
+          `Could not enqueue AI analysis for incident ${incident.id}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+
+        await this.prisma.incident.update({
+          where: {
+            id: incident.id,
+          },
+          data: {
+            aiStatus: AiStatus.PENDING,
+            aiError: 'The AI analysis could not be queued',
+            requiresSupervision: true,
+          },
+        });
+      }
+
+      return incident;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'This incident has already been registered',
+        );
+      }
+
+      this.logger.error(
+        'Could not create incident',
+        error instanceof Error ? error.stack : undefined,
+      );
+
+      throw new InternalServerErrorException(
+        'The incident could not be registered',
+      );
+    }
+  }
+
+  async findOne(id: string, authenticatedUser: AuthenticatedUser) {
+    const incident = await this.prisma.incident.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            lastName: true,
+          },
+        },
+
+        entities: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+
+        histories: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                lastName: true,
+                role: true,
+              },
+            },
+          },
+        },
+
+        assignments: {
+          orderBy: {
+            assignedAt: 'desc',
+          },
+          include: {
+            area: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                status: true,
+              },
+            },
+            operator: {
+              select: {
+                id: true,
+                name: true,
+                lastName: true,
+                role: true,
+                status: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!incident) {
+      throw new NotFoundException('Incident not found');
+    }
+
+    const isCitizen = authenticatedUser.role === UserRole.CITIZEN;
+    const isOwner = incident.userId === authenticatedUser.id;
+
+    if (isCitizen && !isOwner) {
+      throw new ForbiddenException(
+        'You do not have permission to view this incident',
+      );
+    }
+
+    return incident;
+  }
+}
