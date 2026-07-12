@@ -13,21 +13,85 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id           String     @id @default(uuid(7))
-  name         String     @db.VarChar(60)
-  lastName     String?    @db.VarChar(100)
-  dni          String     @unique @db.VarChar(8)
-  phone        String?    @unique @db.VarChar(9)
-  email        String?    @unique @db.VarChar(100)
-  passwordHash String
-  role         UserRole   @default(CITIZEN)
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+enum IncidentType {
+  INFRASTRUCTURE
+  SECURITY
+  HEALTH
+  ENVIRONMENT
+  NOISE
+  TRAFFIC
+  PUBLIC_SERVICES
+  SOCIAL
+  EMERGENCY
+  OTHER
+}
 
-  @@index([name, status, role])
-  @@map("users")
+enum IncidentCategory {
+  FALLEN_UTILITY_POLE
+  WATER_OUTAGE
+  POWER_OUTAGE
+  STREET_FIGHT
+  THEFT
+  TRAFFIC_ACCIDENT
+  GARBAGE_ACCUMULATION
+  POTHOLE
+  FLOOD
+  FIRE
+  EXCESSIVE_NOISE
+  VANDALISM
+  LOOSE_ANIMALS
+  AMBULANCE_REQUIRED
+  POLICE_REQUIRED
+  OTHER
+}
+
+enum IncidentStatus {
+  RECEIVED
+  IN_REVIEW
+  ACCEPTED
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REASSIGNED
+}
+
+enum UrgencyLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Sentiment {
+  NEUTRAL
+  WORRIED
+  PANIC
+  ANGRY
+  URGENT
+}
+
+enum AiStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  ERROR
+  REPROCESSING
+}
+
+enum AiProvider {
+  OPENROUTER
+  CEREBRAS
+  GROQ
 }
 
 enum UserRole {
@@ -40,4 +104,213 @@ enum UserStatus {
   ACTIVE
   INACTIVE
   BLOCKED
+}
+
+enum MunicipalAreaStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum EntityType {
+  PERSON
+  LOCATION
+  ORGANIZATION
+  LANDMARK
+  VEHICLE
+  OBJECT
+  OTHER
+}
+
+model User {
+  id           String     @id @default(uuid(7))
+  name         String     @db.VarChar(60)
+  lastName     String?    @db.VarChar(100)
+  dni          String     @unique @db.VarChar(8)
+  phone        String?    @unique @db.VarChar(9)
+  email        String?    @unique @db.VarChar(100)
+  passwordHash String     @db.VarChar(255)
+  role         UserRole   @default(CITIZEN)
+  status       UserStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incidents           Incident[]
+  incidentHistories   IncidentHistory[]
+  incidentAssignments IncidentAssignment[]
+
+  @@index([name])
+  @@index([lastName])
+  @@index([role])
+  @@index([status])
+  @@index([role, status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Incident {
+  id                  String               @id @default(uuid(7))
+  userId              String
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  clientRequestId     String               @db.VarChar(100)
+  originalMessage     String               @db.Text
+  type                IncidentType?
+  category            IncidentCategory?
+  urgency             UrgencyLevel?
+  sentiment           Sentiment?
+  improvedDescription String?              @db.Text
+  recommendedAction   String?              @db.Text
+  requiresSupervision Boolean              @default(false)
+  keywords            String[]             @default([])
+  latitude            Decimal              @db.Decimal(10, 7)
+  longitude           Decimal              @db.Decimal(10, 7)
+  address             String?              @db.VarChar(250)
+  addressReference    String?              @db.Text
+  status              IncidentStatus       @default(RECEIVED)
+  aiStatus            AiStatus             @default(PENDING)
+  aiProvider          AiProvider?
+  aiModel             String?              @db.VarChar(150)
+  aiError             String?              @db.Text
+  aiAttempts          Int                  @default(0)
+  aiConfidence        Decimal?             @db.Decimal(5, 4)
+  promptTokens        Int?
+  completionTokens    Int?
+  totalTokens         Int?
+  reviewedAt          DateTime?
+  acceptedAt          DateTime?
+  assignedAt          DateTime?
+  startedAt           DateTime?
+  resolvedAt          DateTime?
+  rejectedAt          DateTime?
+  closedAt            DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  entities            IncidentEntity[]
+  histories           IncidentHistory[]
+  assignments         IncidentAssignment[]
+  aiLogs              AiLog[]
+
+  @@unique([userId, clientRequestId])
+  @@index([userId])
+  @@index([status])
+  @@index([aiStatus])
+  @@index([type])
+  @@index([category])
+  @@index([urgency])
+  @@index([requiresSupervision])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([urgency, status])
+  @@index([category, status])
+  @@index([type, status])
+  @@index([aiStatus, createdAt])
+  @@index([userId, createdAt])
+  @@map("incidents")
+}
+
+model IncidentEntity {
+  id         String     @id @default(uuid(7))
+  incidentId String
+  incident   Incident   @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  type       EntityType
+  value      String     @db.VarChar(250)
+  confidence Decimal?   @db.Decimal(5, 4)
+  createdAt  DateTime   @default(now())
+
+  @@index([incidentId])
+  @@index([type])
+  @@index([incidentId, type])
+  @@map("incident_entities")
+}
+
+model IncidentHistory {
+  id             String          @id @default(uuid(7))
+  incidentId     String
+  incident       Incident        @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  previousStatus IncidentStatus?
+  newStatus      IncidentStatus
+  comment        String?         @db.Text
+  createdAt      DateTime        @default(now())
+
+  @@index([incidentId])
+  @@index([userId])
+  @@index([newStatus])
+  @@index([createdAt])
+  @@index([incidentId, createdAt])
+  @@index([incidentId, newStatus])
+  @@map("incident_history")
+}
+
+model MunicipalArea {
+  id          String               @id @default(uuid(7))
+  name        String               @unique @db.VarChar(120)
+  description String?              @db.Text
+  status      MunicipalAreaStatus  @default(ACTIVE)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  assignments IncidentAssignment[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("municipal_areas")
+}
+
+model IncidentAssignment {
+  id          String           @id @default(uuid(7))
+  incidentId  String
+  incident    Incident         @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  areaId      String
+  area        MunicipalArea    @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  operatorId  String?
+  operator    User?            @relation(fields: [operatorId], references: [id], onDelete: SetNull)
+  status      AssignmentStatus @default(ASSIGNED)
+  note        String?          @db.Text
+  assignedAt  DateTime         @default(now())
+  acceptedAt  DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([incidentId])
+  @@index([areaId])
+  @@index([operatorId])
+  @@index([status])
+  @@index([assignedAt])
+  @@index([areaId, status])
+  @@index([operatorId, status])
+  @@index([incidentId, assignedAt])
+  @@map("incident_assignments")
+}
+
+model AiLog {
+  id               String     @id @default(uuid(7))
+  incidentId       String
+  incident         Incident   @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  provider         AiProvider
+  model            String     @db.VarChar(150)
+  status           AiStatus
+  attemptNumber    Int
+  errorMessage     String?    @db.Text
+  rawResponse      Json?
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  latencyMs        Int?
+  startedAt        DateTime   @default(now())
+  completedAt      DateTime?
+  createdAt        DateTime   @default(now())
+
+  @@unique([incidentId, attemptNumber])
+  @@index([incidentId])
+  @@index([provider])
+  @@index([status])
+  @@index([createdAt])
+  @@index([incidentId, createdAt])
+  @@index([provider, status])
+  @@index([status, createdAt])
+  @@map("ai_logs")
 }
