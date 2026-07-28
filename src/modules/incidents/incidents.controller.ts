@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -30,7 +31,15 @@ export class IncidentsController {
   @Auth(UserRole.CITIZEN, UserRole.ADMIN, UserRole.OPERATOR)
   findOne(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', new ParseUUIDPipe({ version: '7' }))
+    @Param(
+      'id',
+      new ParseUUIDPipe({
+        version: '7',
+        exceptionFactory() {
+          return new BadRequestException('Id invalido');
+        },
+      }),
+    )
     id: string,
   ) {
     return this.incidentsService.findOne(id, user);

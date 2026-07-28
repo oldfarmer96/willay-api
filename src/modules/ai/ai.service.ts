@@ -42,7 +42,7 @@ export class AiService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        throw new ConflictException('This incident was already registered');
+        throw new ConflictException('Este incidente ya ha sido registrado.');
       }
 
       throw error;
