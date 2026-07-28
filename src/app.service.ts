@@ -7,7 +7,7 @@ export class AppService {
 
   getHello() {
     return {
-      message: 'Hola',
+      message: 'Willay API',
     };
   }
 
