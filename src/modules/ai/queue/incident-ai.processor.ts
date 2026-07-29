@@ -9,6 +9,7 @@ import {
 import { IncidentAiOrchestratorService } from '../application/incident-ai-orchestrator.service';
 import { IncidentAiPersistenceService } from '../application/incident-ai-persistence.service';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
+import { AiStatus } from '@/generated/prisma/enums';
 
 @Injectable()
 @Processor(INCIDENT_AI_QUEUE, {
@@ -43,6 +44,13 @@ export class IncidentAiProcessor extends WorkerHost {
 
     if (!incident) {
       this.logger.warn(`Incident ${job.data.incidentId} no longer exists`);
+      return;
+    }
+
+    if (incident.aiStatus === AiStatus.PROCESSED) {
+      this.logger.log(
+        `Incident ${job.data.incidentId} already processed, skipping`,
+      );
       return;
     }
 
