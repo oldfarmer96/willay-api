@@ -48,6 +48,8 @@ export class IncidentAiProcessor extends WorkerHost {
 
     await this.persistence.markProcessing(incident.id);
 
+    const attemptOffset =
+      (job.attemptsMade ?? 0) * this.orchestrator.providerCount;
     let currentAttempt = 0;
     const startedAt = new Date();
 
@@ -64,6 +66,7 @@ export class IncidentAiProcessor extends WorkerHost {
             startedAt,
           );
         },
+        attemptOffset,
       );
 
       currentAttempt += 1;

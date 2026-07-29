@@ -25,18 +25,23 @@ export class IncidentAiOrchestratorService {
     private readonly providers: IncidentAiProvider[],
   ) {}
 
+  get providerCount(): number {
+    return this.providerOrder.length;
+  }
+
   async analyze(
     message: string,
     onAttemptFailed?: (
       error: AiProviderError,
       attemptNumber: number,
     ) => Promise<void>,
+    attemptOffset = 0,
   ): Promise<AiAnalysisResult> {
     const orderedProviders = this.getOrderedProviders();
     const errors: AiProviderError[] = [];
 
     for (const [index, provider] of orderedProviders.entries()) {
-      const attemptNumber = index + 1;
+      const attemptNumber = attemptOffset + index + 1;
 
       try {
         this.logger.log(
