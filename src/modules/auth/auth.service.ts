@@ -84,9 +84,20 @@ export class AuthService {
     };
   }
 
-  async refresh(
-    refreshTokenStr: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  async refresh(refreshTokenStr: string): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: {
+      id: string;
+      dni: string;
+      email: string | null;
+      name: string;
+      lastName: string | null;
+      phone: string | null;
+      role: string;
+      status: string;
+    };
+  }> {
     const tokenHash = this.hashToken(refreshTokenStr);
 
     const storedToken = await this.prisma.refreshToken.findUnique({
@@ -98,9 +109,14 @@ export class AuthService {
         revokedAt: true,
         user: {
           select: {
-            status: true,
-            role: true,
+            id: true,
             dni: true,
+            email: true,
+            name: true,
+            lastName: true,
+            phone: true,
+            role: true,
+            status: true,
           },
         },
       },
@@ -136,6 +152,16 @@ export class AuthService {
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
+      user: {
+        id: storedToken.user.id,
+        dni: storedToken.user.dni,
+        email: storedToken.user.email,
+        name: storedToken.user.name,
+        lastName: storedToken.user.lastName,
+        phone: storedToken.user.phone,
+        role: storedToken.user.role,
+        status: storedToken.user.status,
+      },
     };
   }
 

@@ -29,7 +29,7 @@ export class AuthController {
   ) {
     const isProduction =
       configService.getOrThrow<string>('NODE_ENV') === 'production';
-    const apiPrefix = configService.getOrThrow<string>('API_PREFIX');
+    // const apiPrefix = configService.getOrThrow<string>('API_PREFIX');
 
     const accessMaxAgeMs = 15 * 60 * 1000; // 15 minutes
     const refreshMaxAgeMs =
@@ -52,7 +52,7 @@ export class AuthController {
       secure: isProduction,
       sameSite: isProduction ? 'none' : 'lax',
       maxAge: refreshMaxAgeMs,
-      path: `/${apiPrefix}/auth`,
+      path: '/',
     };
   }
 
@@ -91,37 +91,72 @@ export class AuthController {
     return result.user;
   }
 
-  @Post('refresh')
+  @Post('mobile-refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(
-    @Body() body: { refreshToken?: string },
+  async mobileRefresh(@Body() body: { refreshToken?: string }): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: {
+      id: string;
+      dni: string;
+      email: string | null;
+      name: string;
+      lastName: string | null;
+      phone: string | null;
+      role: string;
+      status: string;
+    };
+  }> {
+    if (!body.refreshToken) {
+      throw new ForbiddenException('Refresh token requerido');
+    }
+
+    const result = await this.authService.refresh(body.refreshToken);
+
+    return {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: result.user,
+    };
+  }
+
+  @Post('web-refresh')
+  @HttpCode(HttpStatus.OK)
+  async webRefresh(
     @Req() req: Request,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const refreshTokenStr =
-      body.refreshToken ?? this.extractCookie(req, this.refreshCookieName);
+  ): Promise<{
+    user: {
+      id: string;
+      dni: string;
+      email: string | null;
+      name: string;
+      lastName: string | null;
+      phone: string | null;
+      role: string;
+      status: string;
+    };
+  }> {
+    const refreshTokenStr = this.extractCookie(req, this.refreshCookieName);
 
     if (!refreshTokenStr) {
       throw new ForbiddenException('Refresh token requerido');
     }
 
-    const tokens = await this.authService.refresh(refreshTokenStr);
+    const result = await this.authService.refresh(refreshTokenStr);
 
     response.cookie(
       this.accessCookieName,
-      tokens.accessToken,
+      result.accessToken,
       this.accessCookieOptions,
     );
     response.cookie(
       this.refreshCookieName,
-      tokens.refreshToken,
+      result.refreshToken,
       this.refreshCookieOptions,
     );
 
-    return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    };
+    return { user: result.user };
   }
 
   @Post('mobile-logout')
