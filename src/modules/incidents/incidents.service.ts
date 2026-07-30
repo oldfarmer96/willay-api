@@ -97,6 +97,30 @@ export class IncidentsService {
     }
   }
 
+  async retryAi(id: string) {
+    const incident = await this.prisma.incident.findUnique({
+      where: { id },
+      select: { id: true, aiStatus: true },
+    });
+
+    if (!incident) {
+      throw new NotFoundException('Incident not found');
+    }
+
+    await this.prisma.incident.update({
+      where: { id },
+      data: {
+        aiStatus: AiStatus.PENDING,
+        aiError: null,
+        aiAttempts: 0,
+      },
+    });
+
+    await this.incidentAiProducer.enqueueRetry(id);
+
+    return { message: 'AI retry enqueued' };
+  }
+
   async findOne(id: string, authenticatedUser: AuthenticatedUser) {
     const incident = await this.prisma.incident.findUnique({
       where: {

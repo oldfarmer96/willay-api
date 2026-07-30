@@ -27,6 +27,12 @@ export class IncidentsController {
     return this.incidentsService.create(user.id, dto);
   }
 
+  @Post(':id/retry-ai')
+  @Auth(UserRole.ADMIN, UserRole.OPERATOR)
+  retryAi(@Param('id', new ParseUUIDPipe({ version: '7' })) id: string) {
+    return this.incidentsService.retryAi(id);
+  }
+
   @Get(':id')
   @Auth(UserRole.CITIZEN, UserRole.ADMIN, UserRole.OPERATOR)
   findOne(

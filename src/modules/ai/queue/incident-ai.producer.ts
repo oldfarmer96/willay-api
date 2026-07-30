@@ -42,4 +42,27 @@ export class IncidentAiProducer {
       },
     );
   }
+
+  async enqueueRetry(incidentId: string): Promise<void> {
+    await this.queue.add(
+      ANALYZE_INCIDENT_JOB,
+      { incidentId },
+      {
+        jobId: `incident-analysis-retry-${incidentId}-${Date.now()}`,
+        attempts: 2,
+        backoff: {
+          type: 'exponential',
+          delay: 5_000,
+        },
+        removeOnComplete: {
+          age: 3_600,
+          count: 500,
+        },
+        removeOnFail: {
+          age: 86_400,
+          count: 1_000,
+        },
+      },
+    );
+  }
 }
