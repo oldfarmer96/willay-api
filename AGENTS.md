@@ -100,7 +100,7 @@ necesarios. No crear abstracciones o archivos sin una necesidad concreta.
   enviados por el cliente.
 - La autorización por rol no reemplaza la validación de propiedad en servicios.
 - Un ciudadano solo puede leer y modificar sus propios recursos permitidos.
-- Un operador no obtiene acceso administrativo global por defecto.
+- Un operador no obtiene acceso administrativo global por defecto (excepción: puede listar y ver cualquier incidente, al igual que ADMIN).
 - Nunca devolver o registrar `passwordHash`, JWT, cookies, API keys, secretos,
   credenciales, DNI completo innecesario ni respuestas sensibles de proveedores.
 - Minimizar la exposición de teléfono, correo, identidad y coordenadas.
