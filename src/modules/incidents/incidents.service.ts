@@ -281,14 +281,19 @@ export class IncidentsService {
       throw new NotFoundException('Incident not found');
     }
 
-    await this.prisma.incident.update({
-      where: { id },
-      data: {
-        aiStatus: AiStatus.PENDING,
-        aiError: null,
-        aiAttempts: 0,
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.aiLog.deleteMany({
+        where: { incidentId: id },
+      }),
+      this.prisma.incident.update({
+        where: { id },
+        data: {
+          aiStatus: AiStatus.PENDING,
+          aiError: null,
+          aiAttempts: 0,
+        },
+      }),
+    ]);
 
     await this.incidentAiProducer.enqueueRetry(id);
 
