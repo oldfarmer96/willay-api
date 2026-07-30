@@ -6,9 +6,11 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import { IncidentsService } from './incidents.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
+import { FindIncidentsQryDto } from './dto/find-incidents-qry.dto';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { type AuthenticatedUser } from '@/common/interfaces/authenticated-user.interface';
 import { Auth } from '@/common/decorators/auth.decorator';
@@ -25,6 +27,15 @@ export class IncidentsController {
     @Body() dto: CreateIncidentDto,
   ) {
     return this.incidentsService.create(user.id, dto);
+  }
+
+  @Get()
+  @Auth(UserRole.CITIZEN, UserRole.ADMIN, UserRole.OPERATOR)
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() qry: FindIncidentsQryDto,
+  ) {
+    return this.incidentsService.findAll(qry, user);
   }
 
   @Post(':id/retry-ai')

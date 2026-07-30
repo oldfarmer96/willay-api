@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateIncidentDto } from './dto/create-incident.dto';
+import { FindIncidentsQryDto } from './dto/find-incidents-qry.dto';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import { IncidentAiProducer } from '../ai/queue/incident-ai.producer';
 import { AiStatus, Prisma, UserRole } from '@/generated/prisma/client';
@@ -95,6 +96,94 @@ export class IncidentsService {
         'The incident could not be registered',
       );
     }
+  }
+
+  async findAll(
+    qry: FindIncidentsQryDto,
+    authenticatedUser: AuthenticatedUser,
+  ) {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      status,
+      aiStatus,
+      type,
+      category,
+      urgency,
+      requiresSupervision,
+      startDate,
+      endDate,
+    } = qry;
+
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.IncidentWhereInput = {};
+
+    if (authenticatedUser.role === UserRole.CITIZEN) {
+      where.userId = authenticatedUser.id;
+    }
+
+    if (search) {
+      where.OR = [
+        { originalMessage: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (status) where.status = status;
+    if (aiStatus) where.aiStatus = aiStatus;
+    if (type) where.type = type;
+    if (category) where.category = category;
+    if (urgency) where.urgency = urgency;
+    if (requiresSupervision !== undefined)
+      where.requiresSupervision = requiresSupervision;
+
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) where.createdAt.lte = new Date(endDate);
+    }
+
+    const [total, incidents] = await Promise.all([
+      this.prisma.incident.count({ where }),
+      this.prisma.incident.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          originalMessage: true,
+          type: true,
+          category: true,
+          urgency: true,
+          status: true,
+          aiStatus: true,
+          requiresSupervision: true,
+          createdAt: true,
+          user: {
+            select: { name: true, lastName: true },
+          },
+        },
+      }),
+    ]);
+
+    const lastPage = Math.ceil(total / limit);
+
+    return {
+      data: incidents,
+      meta: {
+        total,
+        page,
+        limit,
+        lastPage,
+        hasNext: page < lastPage,
+        hasPrev: page > 1,
+        nextPage: page < lastPage ? page + 1 : null,
+        prevPage: page > 1 ? page - 1 : null,
+      },
+    };
   }
 
   async retryAi(id: string) {
