@@ -58,16 +58,21 @@ export class IncidentsService {
           error instanceof Error ? error.stack : undefined,
         );
 
-        await this.prisma.incident.update({
-          where: {
-            id: incident.id,
-          },
-          data: {
-            aiStatus: AiStatus.PENDING,
-            aiError: 'The AI analysis could not be queued',
-            requiresSupervision: true,
-          },
-        });
+        try {
+          await this.prisma.incident.update({
+            where: { id: incident.id },
+            data: {
+              aiStatus: AiStatus.PENDING,
+              aiError: 'The AI analysis could not be queued',
+              requiresSupervision: true,
+            },
+          });
+        } catch (updateError) {
+          this.logger.error(
+            `Could not mark incident ${incident.id} after enqueue failure`,
+            updateError instanceof Error ? updateError.stack : undefined,
+          );
+        }
       }
 
       return incident;
