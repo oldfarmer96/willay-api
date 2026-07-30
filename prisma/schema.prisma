@@ -329,3 +329,6 @@ model RefreshToken {
   @@index([expiresAt])
   @@map("refresh_tokens")
 }
+
+// TODO: add Evidence model in the future
+// con incidentId, fileUrl, mimeType, createdAt. Subida de imágenes múltiples
