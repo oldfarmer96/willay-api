@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -8,9 +9,15 @@ import {
 } from '@nestjs/common';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { FindIncidentsQryDto } from './dto/find-incidents-qry.dto';
+import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import { IncidentAiProducer } from '../ai/queue/incident-ai.producer';
-import { AiStatus, Prisma, UserRole } from '@/generated/prisma/client';
+import {
+  AiStatus,
+  IncidentStatus,
+  Prisma,
+  UserRole,
+} from '@/generated/prisma/client';
 import { AuthenticatedUser } from '@/common/interfaces/authenticated-user.interface';
 
 @Injectable()
@@ -184,6 +191,84 @@ export class IncidentsService {
         prevPage: page > 1 ? page - 1 : null,
       },
     };
+  }
+
+  async updateStatus(
+    id: string,
+    dto: UpdateIncidentStatusDto,
+    authenticatedUser: AuthenticatedUser,
+  ) {
+    const incident = await this.prisma.incident.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+
+    if (!incident) {
+      throw new NotFoundException('Incident not found');
+    }
+
+    const allowedTransitions: Record<IncidentStatus, IncidentStatus[]> = {
+      [IncidentStatus.RECEIVED]: [IncidentStatus.IN_REVIEW],
+      [IncidentStatus.IN_REVIEW]: [
+        IncidentStatus.ACCEPTED,
+        IncidentStatus.REJECTED,
+      ],
+      [IncidentStatus.ACCEPTED]: [],
+      [IncidentStatus.ASSIGNED]: [],
+      [IncidentStatus.IN_PROGRESS]: [],
+      [IncidentStatus.RESOLVED]: [IncidentStatus.CLOSED],
+      [IncidentStatus.REJECTED]: [IncidentStatus.CLOSED],
+      [IncidentStatus.CLOSED]: [],
+    };
+
+    const currentStatus = incident.status;
+    const newStatus = dto.status;
+    const allowed = allowedTransitions[currentStatus];
+
+    if (!allowed.includes(newStatus)) {
+      throw new BadRequestException(
+        `Cannot transition from ${currentStatus} to ${newStatus}`,
+      );
+    }
+
+    const timestampField = this.getTimestampField(newStatus);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.incident.update({
+        where: { id },
+        data: {
+          status: newStatus,
+          [timestampField]: new Date(),
+        },
+      });
+
+      await tx.incidentHistory.create({
+        data: {
+          incidentId: id,
+          userId: authenticatedUser.id,
+          previousStatus: currentStatus,
+          newStatus,
+          comment: dto.comment,
+        },
+      });
+    });
+
+    return this.findOne(id, authenticatedUser);
+  }
+
+  private getTimestampField(status: IncidentStatus): string {
+    const map: Record<IncidentStatus, string> = {
+      [IncidentStatus.IN_REVIEW]: 'reviewedAt',
+      [IncidentStatus.ACCEPTED]: 'acceptedAt',
+      [IncidentStatus.REJECTED]: 'rejectedAt',
+      [IncidentStatus.CLOSED]: 'closedAt',
+      [IncidentStatus.RECEIVED]: 'createdAt',
+      [IncidentStatus.ASSIGNED]: 'assignedAt',
+      [IncidentStatus.IN_PROGRESS]: 'startedAt',
+      [IncidentStatus.RESOLVED]: 'resolvedAt',
+    };
+
+    return map[status];
   }
 
   async retryAi(id: string) {

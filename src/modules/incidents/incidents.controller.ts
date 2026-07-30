@@ -5,12 +5,14 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
 import { IncidentsService } from './incidents.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { FindIncidentsQryDto } from './dto/find-incidents-qry.dto';
+import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { type AuthenticatedUser } from '@/common/interfaces/authenticated-user.interface';
 import { Auth } from '@/common/decorators/auth.decorator';
@@ -36,6 +38,16 @@ export class IncidentsController {
     @Query() qry: FindIncidentsQryDto,
   ) {
     return this.incidentsService.findAll(qry, user);
+  }
+
+  @Patch(':id/status')
+  @Auth(UserRole.ADMIN, UserRole.OPERATOR)
+  updateStatus(
+    @Param('id', new ParseUUIDPipe({ version: '7' })) id: string,
+    @Body() dto: UpdateIncidentStatusDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.incidentsService.updateStatus(id, dto, user);
   }
 
   @Post(':id/retry-ai')
