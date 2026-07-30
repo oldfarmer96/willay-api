@@ -22,6 +22,7 @@ export const envSchema = Joi.object({
   CEREBRAS_API_KEY: Joi.string().required(),
   GROQ_API_KEY: Joi.string().required(),
   OPENROUTER_API_KEY: Joi.string().required(),
+  AI_PROVIDER_TIMEOUT: Joi.number().integer().positive().default(30000),
 
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().port().required(),

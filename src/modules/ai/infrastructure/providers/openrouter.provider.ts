@@ -17,11 +17,16 @@ export class OpenRouterIncidentProvider implements IncidentAiProvider {
   readonly model = 'openai/gpt-oss-120b:free';
 
   private readonly client: OpenRouter;
+  private readonly timeoutMs: number;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly parser: AiResponseParser,
   ) {
+    this.timeoutMs = this.configService.get<number>(
+      'AI_PROVIDER_TIMEOUT',
+      30000,
+    );
     this.client = new OpenRouter({
       apiKey: this.configService.getOrThrow<string>('OPENROUTER_API_KEY'),
     });
@@ -31,37 +36,43 @@ export class OpenRouterIncidentProvider implements IncidentAiProvider {
     const startedAt = Date.now();
 
     try {
-      const completion = await this.client.chat.send({
-        chatRequest: {
-          model: this.model,
-          messages: [
-            {
-              role: 'system',
-              content: INCIDENT_ANALYSIS_SYSTEM_PROMPT,
+      const completion = await this.client.chat.send(
+        {
+          chatRequest: {
+            model: this.model,
+            messages: [
+              {
+                role: 'system',
+                content: INCIDENT_ANALYSIS_SYSTEM_PROMPT,
+              },
+              {
+                role: 'user',
+                content: [
+                  'Analiza el siguiente reporte ciudadano.',
+                  '',
+                  '<citizen_report>',
+                  message,
+                  '</citizen_report>',
+                ].join('\n'),
+              },
+            ],
+            responseFormat: {
+              type: 'json_schema',
+              jsonSchema: {
+                name: 'municipal_incident_analysis',
+                strict: true,
+                schema: incidentAnalysisJsonSchema,
+              },
             },
-            {
-              role: 'user',
-              content: [
-                'Analiza el siguiente reporte ciudadano.',
-                '',
-                '<citizen_report>',
-                message,
-                '</citizen_report>',
-              ].join('\n'),
-            },
-          ],
-          responseFormat: {
-            type: 'json_schema',
-            jsonSchema: {
-              name: 'municipal_incident_analysis',
-              strict: true,
-              schema: incidentAnalysisJsonSchema,
-            },
+            temperature: 0.2,
+            maxCompletionTokens: 800,
           },
-          temperature: 0.2,
-          maxCompletionTokens: 800,
         },
-      });
+        {
+          timeoutMs: this.timeoutMs,
+          retries: { strategy: 'none' },
+        },
+      );
 
       const content: unknown = completion.choices[0]?.message?.content;
       const analysis = this.parser.parse(
