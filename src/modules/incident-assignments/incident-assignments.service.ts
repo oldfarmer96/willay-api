@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
@@ -21,8 +20,6 @@ import { FindAssignmentsQryDto } from './dto/find-assignments-qry.dto';
 
 @Injectable()
 export class IncidentAssignmentsService {
-  private readonly logger = new Logger(IncidentAssignmentsService.name);
-
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateAssignmentDto) {
