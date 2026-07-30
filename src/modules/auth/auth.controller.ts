@@ -97,7 +97,7 @@ export class AuthController {
     @Body() body: { refreshToken?: string },
     @Req() req: Request,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<{ accessToken: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const refreshTokenStr =
       body.refreshToken ?? this.extractCookie(req, this.refreshCookieName);
 
@@ -118,7 +118,10 @@ export class AuthController {
       this.refreshCookieOptions,
     );
 
-    return { accessToken: tokens.accessToken };
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
   }
 
   @Post('mobile-logout')
