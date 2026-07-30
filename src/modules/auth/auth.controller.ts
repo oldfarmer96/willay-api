@@ -13,7 +13,6 @@ import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import type { CookieOptions, Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { Auth } from '@/common/decorators/auth.decorator';
 import { UserRole } from '@/generated/prisma/enums';
 
 @Controller('auth')
@@ -160,7 +159,6 @@ export class AuthController {
   }
 
   @Post('mobile-logout')
-  @Auth()
   @HttpCode(HttpStatus.OK)
   async mobileLogout(
     @Body() body: { refreshToken?: string },
@@ -173,7 +171,6 @@ export class AuthController {
   }
 
   @Post('web-logout')
-  @Auth()
   @HttpCode(HttpStatus.OK)
   async webLogout(
     @Req() req: Request,
