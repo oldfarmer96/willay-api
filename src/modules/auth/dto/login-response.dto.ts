@@ -8,6 +8,10 @@ export class LoginResponseDto {
 
   @IsString()
   @IsNotEmpty()
+  refreshToken!: string;
+
+  @IsString()
+  @IsNotEmpty()
   tokenType!: string;
 
   user!: UserDto;
