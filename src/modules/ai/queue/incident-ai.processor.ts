@@ -67,12 +67,19 @@ export class IncidentAiProcessor extends WorkerHost {
         async (error, attemptNumber) => {
           currentAttempt = attemptNumber;
 
-          await this.persistence.saveFailedAttempt(
-            incident.id,
-            attemptNumber,
-            error,
-            startedAt,
-          );
+          try {
+            await this.persistence.saveFailedAttempt(
+              incident.id,
+              attemptNumber,
+              error,
+              startedAt,
+            );
+          } catch (persistError) {
+            this.logger.error(
+              `Failed to persist failed attempt ${attemptNumber} for incident ${incident.id}`,
+              persistError instanceof Error ? persistError.stack : undefined,
+            );
+          }
         },
         attemptOffset,
       );
