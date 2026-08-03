@@ -28,7 +28,6 @@ export class AuthController {
   ) {
     const isProduction =
       configService.getOrThrow<string>('NODE_ENV') === 'production';
-    // const apiPrefix = configService.getOrThrow<string>('API_PREFIX');
 
     const accessMaxAgeMs = 15 * 60 * 1000; // 15 minutes
     const refreshMaxAgeMs =
