@@ -10,6 +10,7 @@ import { incidentAnalysisJsonSchema } from '../../domain/incident-analysis.schem
 import { INCIDENT_ANALYSIS_SYSTEM_PROMPT } from '../prompts/incident-analysis.prompt';
 import { AiResponseParser } from '../parsers/ai-response.parser';
 import { AiProvider } from '@/generated/prisma/enums';
+import { Time } from '@/common/constants/time.constant';
 
 @Injectable()
 export class GroqIncidentProvider implements IncidentAiProvider {
@@ -22,8 +23,14 @@ export class GroqIncidentProvider implements IncidentAiProvider {
     private readonly configService: ConfigService,
     private readonly parser: AiResponseParser,
   ) {
+    const timeout = this.configService.get<number>(
+      'AI_PROVIDER_TIMEOUT',
+      30000,
+    );
     this.client = new Groq({
       apiKey: this.configService.getOrThrow<string>('GROQ_API_KEY'),
+      timeout,
+      maxRetries: 0,
     });
   }
 
@@ -31,36 +38,42 @@ export class GroqIncidentProvider implements IncidentAiProvider {
     const startedAt = Date.now();
 
     try {
-      const completion = await this.client.chat.completions.create({
-        model: this.model,
-        messages: [
-          {
-            role: 'system',
-            content: INCIDENT_ANALYSIS_SYSTEM_PROMPT,
+      const completion = await this.client.chat.completions.create(
+        {
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content: INCIDENT_ANALYSIS_SYSTEM_PROMPT,
+            },
+            {
+              role: 'user',
+              content: [
+                'Analiza el siguiente reporte ciudadano.',
+                '',
+                '<citizen_report>',
+                message,
+                '</citizen_report>',
+              ].join('\n'),
+            },
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'municipal_incident_analysis',
+              strict: true,
+              schema: incidentAnalysisJsonSchema,
+            },
           },
-          {
-            role: 'user',
-            content: [
-              'Analiza el siguiente reporte ciudadano.',
-              '',
-              '<citizen_report>',
-              message,
-              '</citizen_report>',
-            ].join('\n'),
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'municipal_incident_analysis',
-            strict: true,
-            schema: incidentAnalysisJsonSchema,
-          },
+          temperature: 0.2,
+          max_completion_tokens: 2500,
+          reasoning_effort: 'low',
         },
-        temperature: 0.2,
-        max_completion_tokens: 2500,
-        reasoning_effort: 'low',
-      });
+        {
+          timeout: Time.SECOND * 30,
+          maxRetries: 0,
+        },
+      );
 
       const content = completion.choices[0].message.content;
       const analysis = this.parser.parse(content);

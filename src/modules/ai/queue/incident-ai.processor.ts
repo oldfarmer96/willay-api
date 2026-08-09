@@ -9,6 +9,7 @@ import {
 import { IncidentAiOrchestratorService } from '../application/incident-ai-orchestrator.service';
 import { IncidentAiPersistenceService } from '../application/incident-ai-persistence.service';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
+import { AiStatus } from '@/generated/prisma/enums';
 
 @Injectable()
 @Processor(INCIDENT_AI_QUEUE, {
@@ -46,6 +47,13 @@ export class IncidentAiProcessor extends WorkerHost {
       return;
     }
 
+    if (incident.aiStatus === AiStatus.PROCESSED) {
+      this.logger.log(
+        `Incident ${job.data.incidentId} already processed, skipping`,
+      );
+      return;
+    }
+
     await this.persistence.markProcessing(incident.id);
 
     const attemptOffset =
@@ -59,12 +67,19 @@ export class IncidentAiProcessor extends WorkerHost {
         async (error, attemptNumber) => {
           currentAttempt = attemptNumber;
 
-          await this.persistence.saveFailedAttempt(
-            incident.id,
-            attemptNumber,
-            error,
-            startedAt,
-          );
+          try {
+            await this.persistence.saveFailedAttempt(
+              incident.id,
+              attemptNumber,
+              error,
+              startedAt,
+            );
+          } catch (persistError) {
+            this.logger.error(
+              `Failed to persist failed attempt ${attemptNumber} for incident ${incident.id}`,
+              persistError instanceof Error ? persistError.stack : undefined,
+            );
+          }
         },
         attemptOffset,
       );
